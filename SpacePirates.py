@@ -41,7 +41,6 @@ WORLD_SIZE = [10000,10000]
 NETWORK_EVENT = USEREVENT+1
 
 
-
 UDP_IP = '<broadcast>' # '255.255.255.255'
 UDP_PORT = 27016 # 5800 # 27015
 
@@ -49,35 +48,23 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.setblocking(0)
-# sock.settimeout(0.1)
-
 sock.bind(('0.0.0.0', UDP_PORT))
-
-
-OFFLINE = 0
-HOST 	= 1
-CLIENT	= 2
 
 PLAYER_ID = random.randint(0,65535)
 print "Player ID:\t",PLAYER_ID
 
 print "Local Host:\t",socket.gethostname() # Returns "Accipiter"
-# print([(s.connect(('8.8.8.8', 80)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1])
-# print os.popen("ipconfig").read()
-# print socket.gethostbyname_ex(socket.gethostname())[2]
-# print [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")]
+
 OWN_IP_ADDR = [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")]
 print "Local IP:\t",OWN_IP_ADDR[0]
 print "Using Port:\t",UDP_PORT
 
 class Player(pygame.sprite.Sprite):
-	# PLAYER_SHIP_IMG = pygame.image.load(SHIP_IMAGE_FILE)
 	SURFACE = pygame.transform.scale(pygame.image.load(SHIP_IMAGE_FILE), (PLAYER_SIZE_START, PLAYER_SIZE_START))
 	def __init__(self):
 		pygame.sprite.Sprite.__init__(self, self.containers)
 		self.image 		= self.SURFACE
 		self.rect 		= self.image.get_rect()  # pygame.Rect(0,0,PLAYER_SIZE_START,PLAYER_SIZE_START)
-		# self.size 		= PLAYER_SIZE_START
 		self.rot 		= 0
 		self.pos 		= [200,200]
 		self.vel 		= [0,0]
@@ -312,10 +299,6 @@ def run():
 				if event.button == (3):
 					player.mouseNav = 0 if player.mouseNav else 1  # 0 if player.mouseNav else
 			elif event.type == NETWORK_EVENT:
-				payload = array('f') # 'B'
-
-				# for x in [float(player.rot),float(player.vel[0]),float(player.vel[1])]:
-				# payload.fromlist([float(player.rot),float(player.vel[0]),float(player.vel[1])])
 				payload = struct.pack('Hfffff',player.ID,float(player.rot),float(player.pos[0]),float(player.pos[1]),float(player.vel[0]),float(player.vel[1]))
 				sock.sendto(payload, (UDP_IP, UDP_PORT))
 
