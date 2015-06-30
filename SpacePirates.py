@@ -223,7 +223,7 @@ class Status(pygame.sprite.Sprite):
 
 
 def main():
-	global SCREEN, BACKGROUND, CLOCK, PLAYER_SHIP_IMG
+	global SCREEN, BACKGROUND, CLOCK
 	pygame.init()
 	pygame.time.set_timer(NETWORK_EVENT, 100)
 	SCREEN = pygame.display.set_mode(SCREEN_SIZE)
@@ -248,9 +248,7 @@ def main():
 		pygame.mixer.music.stop()
 
 
-def run():
-	gameType = HOST
-	
+def run():	
 	all = pygame.sprite.RenderUpdates()
 	ships = pygame.sprite.Group()
 	shots = pygame.sprite.Group()
@@ -302,23 +300,7 @@ def run():
 				payload = struct.pack('Hfffff',player.ID,float(player.rot),float(player.pos[0]),float(player.pos[1]),float(player.vel[0]),float(player.vel[1]))
 				sock.sendto(payload, (UDP_IP, UDP_PORT))
 
-				try:
-					str, addr = sock.recvfrom(32)
-					if(addr[0] != OWN_IP_ADDR[0]):
-						data = struct.unpack_from('Hfffff',str)
-						# print addr[0],OWN_IP_ADDR[0]
-						
-						if(data[0] != PLAYER_ID):
-							enemy.rot    = data[1]
-							enemy.pos[0] = data[2]
-							enemy.pos[1] = data[3]
-							enemy.vel[0] = data[4]
-							enemy.vel[1] = data[5]
-							print data
-							
-				except socket.error:
-					pass
-					# print enemy.pos
+			
 
 				
 		all.clear(SCREEN, BACKGROUND)
@@ -331,6 +313,24 @@ def run():
 		# Render Method 2, must better graphics for reduced preformance
 		all.draw(SCREEN)
 		pygame.display.flip()
+		
+		try:
+			str, addr = sock.recvfrom(32)
+			if(addr[0] != OWN_IP_ADDR[0]):
+				data = struct.unpack_from('Hfffff',str)
+				# print addr[0],OWN_IP_ADDR[0]
+				
+				if(data[0] != PLAYER_ID):
+					enemy.rot    = data[1]
+					enemy.pos[0] = data[2]
+					enemy.pos[1] = data[3]
+					enemy.vel[0] = data[4]
+					enemy.vel[1] = data[5]
+					# print data
+					
+		except socket.error:
+			pass
+			# print enemy.pos
 		
 		CLOCK.tick(FPS)
 		
