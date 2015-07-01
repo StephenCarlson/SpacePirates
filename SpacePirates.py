@@ -17,6 +17,7 @@ from array import *
 # from socket import *
 
 FPS = 60
+NETWORK_PERIOD_MS = 50
 
 PLAYER_SIZE_START		= 40
 PLAYER_POWER_MAX		= 100
@@ -225,7 +226,7 @@ class Status(pygame.sprite.Sprite):
 def main():
 	global SCREEN, BACKGROUND, CLOCK
 	pygame.init()
-	pygame.time.set_timer(NETWORK_EVENT, 100)
+	pygame.time.set_timer(NETWORK_EVENT, NETWORK_PERIOD_MS)
 	SCREEN = pygame.display.set_mode(SCREEN_SIZE)
 	BACKGROUND = pygame.Surface(SCREEN.get_size())
 	# BACKGROUND = BACKGROUND.convert() 	# Use when displaying images?
