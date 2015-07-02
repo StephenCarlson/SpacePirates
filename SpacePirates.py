@@ -315,11 +315,12 @@ def run():
 	# Enemy.containers = all
 	Contrail.containers = all
 	player = Player()
+	otherPlayer = Ship()
 	# enemy = Enemy()
 	# debris = []
-	for i in range(20):
-		s = Ship() # SpaceObject()
-		s.pos = [random.uniform(0,SCREEN.get_width()),random.uniform(0,SCREEN.get_height())]
+	#for i in range(20):
+		#s = Ship() # SpaceObject()
+		#s.pos = [random.uniform(0,SCREEN.get_width()),random.uniform(0,SCREEN.get_height())]
 		
 		# debris.append(s)
 	
@@ -393,11 +394,11 @@ def run():
 				
 				if(data[0] != PLAYER_ID):
 					pass
-					# enemy.rot    = data[1]
-					# enemy.pos[0] = data[2]
-					# enemy.pos[1] = data[3]
-					# enemy.vel[0] = data[4]
-					# enemy.vel[1] = data[5]
+					otherPlayer.rot    = data[1]
+					otherPlayer.pos[0] = data[2]
+					otherPlayer.pos[1] = data[3]
+					otherPlayer.vel[0] = data[4]
+					otherPlayer.vel[1] = data[5]
 					# print data
 					
 		except socket.error:
