@@ -7,30 +7,34 @@
 
 # Dependencies:
 # 	PyGame Library		-- Get this library at http://www.pygame.org/
-# 	ship.png			-- Arbitrary Space Pirate ship, 64x64 size
+# 	ship.png, ship2.png -- Arbitrary Space Pirate ship, 64x64 size
 # 	backgroundMusic.ogg -- OGG Music file, PyGame barfs on MP3s
 
-
+# Imports
 import pygame, math, sys, collections, socket, os, struct,random
 from pygame.locals import *
 from array import *
 # from socket import *
 
+# Critical Timing Parameters
 FPS = 60
 NETWORK_PERIOD_MS = 50
 
+# Gameplay Parameters
 PLAYER_SIZE_START		= 40
 PLAYER_POWER_MAX		= 100
 PLAYER_MASS_START		= 20
-DAMP_OFF				= 0
-DAMP_ON					= 1
-VERN_OFF				= 0
-VERN_ON					= 1
 DAMP_ACCEL				= 0.2 # 0.2 0.05
 FLY_ACCEL				= 0.2
 FLY_MAX					= 10.0
 TRAIL_LENGTH			= 300
 
+# Constants
+A_ON					= 0
+A_OFF					= 1
+NETWORK_EVENT 			= USEREVENT+1
+
+# Resource Locations
 SHIP_IMAGE_FILE			= 'ship.png'
 SHIP2_IMAGE_FILE		= 'ship2.png'
 GAME_MUSIC_FILE			= 'backgroundMusic.ogg'
@@ -39,14 +43,12 @@ GAME_MUSIC_FILE			= 'backgroundMusic.ogg'
 # 	http://www.archive.org/details/Stellardrone-InventTheUniverse
 # 	Converted from MP3 to OGG using VLC
 
-
+# Program and Network Parameters
 SCREEN_SIZE = [1024, 600]
 WORLD_SIZE = [10000,10000]
-NETWORK_EVENT = USEREVENT+1
-
-
 UDP_IP = '<broadcast>' # '255.255.255.255'
 UDP_PORT = 27016 # 5800 # 27015
+
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -146,8 +148,8 @@ class Ship(SpaceObject):
 class Player(Ship):
 	def __init__(self):
 		Ship.__init__(self, img=SHIP_IMAGE_FILE)
-		self.dampeners 	= DAMP_ON
-		self.verniers 	= VERN_OFF
+		self.dampeners 	= A_ON
+		self.verniers 	= A_OFF
 		self.mouseNav	= False
 		
 		self.pos[0] = SCREEN_SIZE[0]/2
@@ -203,7 +205,7 @@ class Enemy(SpaceObject):
 		self.power 		= PLAYER_POWER_MAX
 		self.mass 		= PLAYER_MASS_START
 		self.shooting 	= False
-		self.dampeners 	= DAMP_ON
+		self.dampeners 	= A_ON
 		self.ID			= PLAYER_ID
 		self.lastseen	= 0.0
 		
