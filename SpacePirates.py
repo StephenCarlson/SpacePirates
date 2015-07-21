@@ -16,9 +16,9 @@ from pygame.locals import *
 from array import *
 # from socket import *
 
-# Critical Timing Parameters
-FPS = 60
-NETWORK_PERIOD_MS = 50
+# Timing Parameters
+FPS 					= 60
+NETWORK_PERIOD_MS 		= 50
 
 # Gameplay Parameters
 PLAYER_SIZE_START		= 40
@@ -35,41 +35,45 @@ A_OFF					= 1
 NETWORK_EVENT 			= USEREVENT+1
 
 # Resource Locations
+GAME_ICON_IMAGE			= 'gameicon.png'
 SHIP_IMAGE_FILE			= 'ship.png'
 SHIP2_IMAGE_FILE		= 'ship2.png'
-GAME_MUSIC_FILE			= 'backgroundMusic.ogg'
+# SHIP_IMAGE_FILE			= 'test.png' # 'ship.png'
+# SHIP2_IMAGE_FILE		= 'test.png' # 'ship2.png'
+GAME_MUSIC_FILE			= None # 'backgroundMusic.ogg'
 # Music File Source:
 # 	Stellardrone - 09 - The Edge of Forever
 # 	http://www.archive.org/details/Stellardrone-InventTheUniverse
 # 	Converted from MP3 to OGG using VLC
 
 # Program and Network Parameters
-SCREEN_SIZE = [1024, 600]
-WORLD_SIZE = [10000,10000]
-UDP_IP = '<broadcast>' # '255.255.255.255'
-UDP_PORT = 27016 # 5800 # 27015
+SCREEN_SIZE 			= [1024, 600]
+WORLD_SIZE 				= [10000,10000]
+UDP_IP 					= '<broadcast>' # '255.255.255.255'
+UDP_PORT 				= 27016 # 5800 # 27015
 
+try:
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+	sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	sock.setblocking(0)
+	sock.bind(('0.0.0.0', UDP_PORT))
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-sock.setblocking(0)
-sock.bind(('0.0.0.0', UDP_PORT))
+	PLAYER_ID = random.randint(0,65535)
+	print "Player ID:\t",PLAYER_ID
 
-PLAYER_ID = random.randint(0,65535)
-print "Player ID:\t",PLAYER_ID
+	print "Local Host:\t",socket.gethostname() # Returns Machine Name
 
-print "Local Host:\t",socket.gethostname() # Returns "Accipiter"
+	OWN_IP_ADDR = [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")]
+	print "Local IP:\t",OWN_IP_ADDR[0]
+	print "Using Port:\t",UDP_PORT
 
-OWN_IP_ADDR = [ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")]
-print "Local IP:\t",OWN_IP_ADDR[0]
-print "Using Port:\t",UDP_PORT
+except Exception, e: print str(e)
 
 
 class SpaceObject(pygame.sprite.Sprite):
 	def __init__(self,img,w=10,h=10):
 		pygame.sprite.Sprite.__init__(self,self.containers)
-		#self.SURFACE 	= pygame.Surface([0, 0]) if img is None else pygame.image.load(img)
 		self.SURFACE 	= pygame.transform.scale(pygame.image.load(img), (w, h))
 		self.mask		= pygame.mask.from_surface(self.SURFACE, 127)
 		self.image 		= self.SURFACE
@@ -79,7 +83,7 @@ class SpaceObject(pygame.sprite.Sprite):
 		self.vel 		= [0,0]
 		self.acc		= [0,0]
 		self.mass		= self.mask.count()
-	
+		
 	def update(self):
 		self.image, self.rect = rotate(self.SURFACE,self.rect, -self.rot)
 		self.rot = roll(self.rot,0.0,360.0)
@@ -99,38 +103,33 @@ class SpaceObject(pygame.sprite.Sprite):
 		
 	def collide(self,other):
 		self.mask = pygame.mask.from_surface(self.image, 127)
-
+		otherMask = pygame.mask.from_surface(other.image, 127)
+		
 		offset = [int(x) for x in vsub(other.pos,self.pos)]
-		overlap = self.mask.overlap_area( other.mask,offset )
+		overlap = self.mask.overlap_area( otherMask,offset ) # other.mask
 		if overlap == 0:
 			return
-		print overlap #,self.pos,other.pos
-
-		nx = (self.mask.overlap_area(other.mask,(offset[0]+1,offset[1])) - self.mask.overlap_area(other.mask,(offset[0]-1,offset[1])))
-		ny = (self.mask.overlap_area(other.mask,(offset[0],offset[1]+1)) - self.mask.overlap_area(other.mask,(offset[0],offset[1]-1)))
+		# print overlap #,self.pos,other.pos
+		
+		nx = (self.mask.overlap_area(otherMask,(offset[0]+1,offset[1])) - self.mask.overlap_area(otherMask,(offset[0]-1,offset[1])))
+		ny = (self.mask.overlap_area(otherMask,(offset[0],offset[1]+1)) - self.mask.overlap_area(otherMask,(offset[0],offset[1]-1)))
 		if(nx == 0 and ny == 0):
 			return
 		n = [nx,ny]
 		dv = vsub(other.vel,self.vel)
 		J = vdot(dv,n)/(2*vdot(n,n))
 		if J > 0:
-			J *= 1.9
+			J *= 0.8 # 1.9
 			self.vel[0] += nx*J
 			self.vel[1] += ny*J
 			other.vel[0] += -J*nx
 			other.vel[1] += -J*ny
 		return
 	
-		
-
+	
 class Ship(SpaceObject):
-	# SURFACE = pygame.transform.scale(pygame.image.load(SHIP2_IMAGE_FILE), (PLAYER_SIZE_START, PLAYER_SIZE_START))
 	def __init__(self, img=SHIP2_IMAGE_FILE,w=PLAYER_SIZE_START, h=PLAYER_SIZE_START):
 		SpaceObject.__init__(self,img,w,h)
-		# self.image 		= self.SURFACE if img is None else pygame.transform.scale(pygame.image.load(img), (PLAYER_SIZE_START, PLAYER_SIZE_START))
-		# s = 
-		#self.SURFACE 	= pygame.transform.scale(pygame.image.load(SHIP2_IMAGE_FILE if img==None else img), (PLAYER_SIZE_START, PLAYER_SIZE_START))
-		#self.image 		= self.image
 		self.power 		= PLAYER_POWER_MAX
 		self.mass 		= PLAYER_MASS_START
 		self.shooting 	= False
@@ -138,11 +137,9 @@ class Ship(SpaceObject):
 		self.pos = [random.uniform(0,SCREEN.get_width()),random.uniform(0,SCREEN.get_height())]		
 		
 		self.ID			= random.randint(0,65535)
-	
+		
 	def update(self):
 		SpaceObject.update(self)
-
-		
 		
 		
 class Player(Ship):
@@ -157,21 +154,21 @@ class Player(Ship):
 		
 		
 		self.ID			= PLAYER_ID
-	
+		
 	def update(self):
 		Ship.update(self)
 		
 		keystate = pygame.key.get_pressed()
 		cmdVec = [(keystate[K_d]-keystate[K_a]),(max(keystate[K_w],keystate[K_UP])-max(keystate[K_s],keystate[K_DOWN]))] # x,y -> [-1.0:1.0]
 		# Optional: Normalize to length=1
-				
+		
 		xComp = cmdVec[0]*math.cos(math.radians(self.rot)) + cmdVec[1]*math.sin(math.radians(self.rot))
 		yComp = cmdVec[0]*math.sin(math.radians(self.rot)) - cmdVec[1]*math.cos(math.radians(self.rot))
 		
 		
 		mVec = [xComp,yComp]
 		
-		attenuation = 0.2 if self.verniers else 1.0
+		attenuation = 0.2 if self.verniers==A_ON else 1.0
 		
 		
 		self.acc[0] = (mVec[0]*FLY_ACCEL*attenuation)
@@ -190,44 +187,8 @@ class Player(Ship):
 		mouseRotation = ( math.degrees( math.atan2(dxx,-dyy) ) )
 		keysRotation = self.rot + ((keystate[K_RIGHT]-keystate[K_LEFT]+keystate[K_e]-keystate[K_q])*5.0)
 		self.rot = mouseRotation if self.mouseNav else keysRotation
-
 		
-'''
-class Enemy(SpaceObject):
-	SURFACE = pygame.transform.scale(pygame.image.load(SHIP_IMAGE_FILE), (PLAYER_SIZE_START, PLAYER_SIZE_START))
-	def __init__(self):
-		SpaceObject.__init__(self, self.containers)
-		self.image 		= self.SURFACE
-		self.rect 		= self.image.get_rect()  # pygame.Rect(0,0,PLAYER_SIZE_START,PLAYER_SIZE_START)
-		self.rot 		= 0
-		self.pos 		= [400,200]
-		self.vel 		= [0,0]
-		self.power 		= PLAYER_POWER_MAX
-		self.mass 		= PLAYER_MASS_START
-		self.shooting 	= False
-		self.dampeners 	= A_ON
-		self.ID			= PLAYER_ID
-		self.lastseen	= 0.0
 		
-		# self.contrail 	= Contrail()
-	
-	def update(self):
-		self.image, self.rect = rotate(self.SURFACE,self.rect, -self.rot)
-		
-		self.vel = [clamp(self.vel[0],-FLY_MAX,FLY_MAX),clamp(self.vel[1],-FLY_MAX,FLY_MAX)]		
-		
-		self.pos[0] += (self.vel[0])
-		self.pos[1] += (self.vel[1])
-
-		self.pos[0] = roll(self.pos[0],0,SCREEN_SIZE[0])
-		self.pos[1] = roll(self.pos[1],0,SCREEN_SIZE[1])
-		
-		self.rect.centerx = self.pos[0]
-		self.rect.centery = self.pos[1]
-		
-		self.rot = roll(self.rot,0.0,360.0)
-'''
-
 class Contrail(SpaceObject):
 	def __init__(self):
 		# Can also use super().__init__()
@@ -243,7 +204,6 @@ class Contrail(SpaceObject):
 		newRect = inRect.inflate(-15,-15)
 		self.trail.appendleft(newRect)
 		
-	
 	def update(self):
 		#pygame.draw.lines(SCREEN,(0,0,0),False,trail,)
 		print self.trail[0][0] #len(trail)
@@ -253,16 +213,15 @@ class Contrail(SpaceObject):
 			# contrailColor = (24,24,((TRAIL_LENGTH-p)/4)+24)
 			# pygame.draw.circle(SCREEN,contrailColor,contrailCoord,contrailWidth,)
 			# pygame.draw.ellipse(SCREEN,(24,24,((TRAIL_LENGTH-p)/4)+24),trail[p])
-
-
-		
+			
+			
 # class TargetReticle(SpaceObject):
 	# def __init__(self):
 		# pygame.sprite.Sprite.__init__(self, self.containers)
 		# pygame.draw.line(SCREEN,(0,0,0),(player.pos[0],player.pos[1]),mouseCoords)
 
 
-	
+
 '''
 class Shot(pygame.sprite.Sprite):
 	def __init__(self):
@@ -288,48 +247,48 @@ def main():
 	# BACKGROUND = BACKGROUND.convert() 	# Use when displaying images?
 	BACKGROUND.fill((24, 24, 24))
 	SCREEN.blit(BACKGROUND, (0,0))
-	# pygame.display.flip() 				# Needed if using Render Method 1
 
-	
-	
-	
 	pygame.display.set_caption("Space Pirates")
-	#pygame.display.set_icon(pygame.image.load('gameicon.png'))
+	pygame.display.set_icon(pygame.image.load(GAME_ICON_IMAGE))
 	CLOCK = pygame.time.Clock()
 	
-	#while done==False:
 	while True:
-		pygame.mixer.music.load(GAME_MUSIC_FILE)
-		pygame.mixer.music.play(-1, 0.0)
+		# if GAME_MUSIC_FILE is not None:
+		try:
+			pygame.mixer.music.load(GAME_MUSIC_FILE)
+			pygame.mixer.music.play(-1, 0.0)
+		except Exception,e: print str(e)
+		
 		run()
-		pygame.mixer.music.stop()
 
 
 def run():	
 	all = pygame.sprite.RenderUpdates()
-	ships = pygame.sprite.Group()
+	objects = pygame.sprite.Group()
 	shots = pygame.sprite.Group()
-	# enemies = pygame.sprite.Group()
-	# contrails = pygame.sprite.Group()
+	contrails = pygame.sprite.Group()
 	
-	Player.containers = all
-	Ship.containers = all,ships
-	# Enemy.containers = all
-	Contrail.containers = all
+	Player.containers = all, objects
+	Ship.containers = all, objects
+	#Shot.containers = all, shots
+	Contrail.containers = all, contrails
+	
 	player = Player()
-	otherPlayer = Ship()
-	# enemy = Enemy()
+	otherPlayers = {} #dict() # [] # Ship()
 	# debris = []
-	#for i in range(20):
-		#s = Ship() # SpaceObject()
-		#s.pos = [random.uniform(0,SCREEN.get_width()),random.uniform(0,SCREEN.get_height())]
-		
-		# debris.append(s)
 	
-	# player2 = Player()
+	
+	'''
+	for i in range(10):
+		newShip = Ship()
+		newID = random.randint(0,65535)
+		newShip.ID = newID
+		newShip.pos = [random.uniform(0,SCREEN.get_width()),random.uniform(0,SCREEN.get_height())]
+		newShip.rot = random.uniform(0,360)
+		otherPlayers[newID] = newShip
+	'''
+	
 	# contrail = player.contrail
-	
-	# ships.add(player)
 	
 	while True:
 		for event in pygame.event.get():
@@ -338,8 +297,8 @@ def run():
 				sys.exit()
 			elif event.type == KEYDOWN:
 				if event.key in (K_z,K_t): # == (K_z): # 
-					player.dampeners = 0 if player.dampeners else 1
-				if event.key == (K_CAPSLOCK): # in (K_z,K_t)
+					player.dampeners = A_OFF if player.dampeners else A_ON
+				elif event.key == (K_CAPSLOCK): # in (K_z,K_t)
 					player.verniers = 0 if player.verniers else 1
 				elif event.key == (K_r):
 					player.rot = 0
@@ -369,48 +328,70 @@ def run():
 				payload = struct.pack('Hfffff',player.ID,float(player.rot),float(player.pos[0]),float(player.pos[1]),float(player.vel[0]),float(player.vel[1]))
 				sock.sendto(payload, (UDP_IP, UDP_PORT))
 
-		for event in pygame.sprite.spritecollide(player,ships,0):
-		# for eventDict in pygame.sprite.groupcollide(ships,ships,0,0):
-			# print eventDict # for s in eventDict:
-				#print s
-				# s.collide(e for e in s.values()) 
-			player.collide(event)
+		for item in objects:
+			#print ship.ID
+			for encounter in pygame.sprite.spritecollide(item,objects,0):
+				# print encounter
+				item.collide(encounter)
+				
 
 				
 		all.clear(SCREEN, BACKGROUND)
 		all.update()
 		
-		# Render Method 1, faster but with severe clipping with movement
-		# dirty = all.draw(SCREEN)
-		# pygame.display.update(dirty)
-		
-		# Render Method 2, must better graphics for reduced preformance
 		all.draw(SCREEN)
 		pygame.display.flip()
 		
-		try:
-			str, addr = sock.recvfrom(32)
-			if(addr[0] != OWN_IP_ADDR[0]):
-				data = struct.unpack_from('Hfffff',str)
-				# print addr[0],OWN_IP_ADDR[0]
-				
-				if(data[0] != PLAYER_ID):
-					pass
-					otherPlayer.rot    = data[1]
-					otherPlayer.pos[0] = data[2]
-					otherPlayer.pos[1] = data[3]
-					otherPlayer.vel[0] = data[4]
-					otherPlayer.vel[1] = data[5]
-					# print data
-					
-		except socket.error:
-			pass
-			# print enemy.pos
-		
+		networkUpdate(otherPlayers);
+
 		CLOCK.tick(FPS)
-		
-# def networkCall(player,enemy):
+
+
+def networkUpdate(playerDict):
 	
+	# pass
+	# Training / Simulation
+	#for i in playerDict:
+	#	playerDict[i].vel = [playerDict[i].vel[0]+random.uniform(-0.1,0.1),playerDict[i].vel[1]+random.uniform(-0.1,0.1)]
+	#	playerDict[i].rot += random.uniform(-1,1)
+		
+		# print i,otherPlayers[i]
+		
+	#print otherPlayers
+	
+	
+	# Actual Code for Network Play
+	
+	try:
+		payload, addr = sock.recvfrom(32)
+		if(addr[0] != OWN_IP_ADDR[0]):
+			data = struct.unpack_from('Hfffff',payload)
+			playerID = data[0]
+			# print addr[0],OWN_IP_ADDR[0]
+			
+			if(playerID != PLAYER_ID):
+				# pass
+				if(playerDict.has_key(playerID)):
+					# playerDict[playerID] = playerDict()
+					playerDict[playerID].rot    = data[1]
+					playerDict[playerID].pos[0] = data[2]
+					playerDict[playerID].pos[1] = data[3]
+					playerDict[playerID].vel[0] = data[4]
+					playerDict[playerID].vel[1] = data[5]
+				else:
+					newPlayer = Ship()
+					newPlayer.rot    = data[1]
+					newPlayer.pos[0] = data[2]
+					newPlayer.pos[1] = data[3]
+					newPlayer.vel[0] = data[4]
+					newPlayer.vel[1] = data[5]
+					playerDict.append(newPlayer)
+					
+	except socket.error,e:
+		pass
+		# print str(e)
+		
+
 
 def clamp(n, minn, maxn):
 	return max(min(maxn, n), minn)
@@ -419,11 +400,7 @@ def roll(n, minb, maxb):
 	return n+maxb-minb if n<minb else n-maxb-minb if n>maxb else n
 	
 def rotate(image, rect, angle):
-	# From pybreak360
 	rot_image = pygame.transform.rotate(image, angle)
-	# w = math.sqrt(rect.width**2 + rect.height**2)
-	# rot_rect = rot_image.get_rect(center=rect.center, size=(w,w))
-	
 	rot_rect = rot_image.get_rect(center=rect.center)
 
 	return rot_image,rot_rect
