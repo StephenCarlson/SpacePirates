@@ -10,6 +10,16 @@
 # 	ship.png, ship2.png -- Arbitrary Space Pirate ship, 64x64 size
 # 	backgroundMusic.ogg -- OGG Music file, PyGame barfs on MP3s
 
+
+
+
+
+
+
+
+
+
+
 # Imports
 import pygame, math, sys, collections, socket, os, struct,random
 from pygame.locals import *
@@ -47,7 +57,7 @@ GAME_MUSIC_FILE			= None # 'backgroundMusic.ogg'
 # 	Converted from MP3 to OGG using VLC
 
 # Program and Network Parameters
-SCREEN_SIZE 			= [1024, 768]
+SCREEN_SIZE 			= [800, 600]
 WORLD_SIZE 				= [10000,10000]
 MINI_MAP_SIZE			= 200
 UDP_IP 					= '<broadcast>' # '255.255.255.255'
@@ -165,8 +175,12 @@ class Ship(SpaceObject):
 		
 		self.ID			= random.randint(0,65535)
 		
+		self.contrail = Contrail()
+		
 	def update(self, perspective=0):
 		SpaceObject.update(self,perspective)
+		self.contrail.append(self.rect)
+		self.contrail.update()
 		
 # A type of Ship object. Has keys and mouse controls.
 class Player(Ship):
@@ -216,12 +230,13 @@ class Player(Ship):
 		self.rot = mouseRotation if self.mouseNav else keysRotation
 		
 # A SpaceObject. Puffs and trails that have momentum but no collision or damage.
-class Contrail(SpaceObject):
+class Contrail(pygame.sprite.Sprite):
 	def __init__(self):
 		# Can also use super().__init__()
-		SpaceObject.__init__(self, self.containers)
+		pygame.sprite.Sprite.__init__(self, self.containers)
 		self.trail = collections.deque(TRAIL_LENGTH*[pygame.Rect(0,0,0,0)],TRAIL_LENGTH) # From http://stackoverflow.com/questions/1931589
-		self.image = pygame.draw.circle(SCREEN,(20,20,20),[200,200],10,)
+		# self.image = pygame.draw.circle(SCREEN,(20,20,20),[200,200],10,)
+		self.image = pygame.Surface( (int(2), int(2)) )
 		# pygame.Surface( (int(WORLD_SIZE[0]),int(WORLD_SIZE[1])) )
 		self.rect = self.image.get_rect()
 		# print containers
@@ -233,14 +248,15 @@ class Contrail(SpaceObject):
 		self.trail.appendleft(newRect)
 		
 	def update(self):
+		# SpaceObject.update(self,0)
 		#pygame.draw.lines(SCREEN,(0,0,0),False,trail,)
-		print self.trail[0][0] #len(trail)
-		# for p in reversed(range(len(trail))):
-			# contrailCoord = [0,0] #[trail[p].centerx,trail[p].centery]
+		# print self.trail[0][0] #len(trail)
+		for p in reversed(range(len(self.trail))):
+			# contrailCoord = [self.trail[p].centerx,self.trail[p].centery]
 			# contrailWidth = int(((TRAIL_LENGTH-p)*10/TRAIL_LENGTH)) if (p>2) else 0
 			# contrailColor = (24,24,((TRAIL_LENGTH-p)/4)+24)
 			# pygame.draw.circle(SCREEN,contrailColor,contrailCoord,contrailWidth,)
-			# pygame.draw.ellipse(SCREEN,(24,24,((TRAIL_LENGTH-p)/4)+24),trail[p])
+			pygame.draw.ellipse(SCREEN,(24,24,((TRAIL_LENGTH-p)/4)+24),self.trail[p])
 			
 			
 # class TargetReticle(SpaceObject):
@@ -269,10 +285,10 @@ class MiniMap(pygame.sprite.Sprite):
 	def __init__(self):
 		pygame.sprite.Sprite.__init__(self,self.containers)
 		self.ratio = MINI_MAP_SIZE/math.sqrt(WORLD_SIZE[0]**2 + WORLD_SIZE[1]**2)
-		print self.ratio
 		self.image = pygame.Surface( (int(WORLD_SIZE[0]*self.ratio),int(WORLD_SIZE[1]*self.ratio)),flags=SRCALPHA )
 		self.rect = self.image.get_rect()  # .move(SCREEN_SIZE[0]-int(WORLD_SIZE[0]/16),0)
 		self.list = pygame.sprite.Group() # []
+		self.offset = [0,0]
 		
 	def refresh(self, itemList):
 		# print itemList
@@ -296,15 +312,15 @@ class MiniMap(pygame.sprite.Sprite):
 		for i in self.list:
 			if type(i) is Player:
 				pygame.draw.circle(self.image,(255,255,0,200),[int(c*self.ratio) for c in i.pos],1)
-				# p = [int(c*self.ratio) for c in i.pos]
-				# math.cos()
-				# pygame.draw.polygon(self.image,(255,255,0),[(22,22),(32,32),(42,22)],1)
+				#p = [int(c*self.ratio) for c in i.pos]
+				#math.cos()
+				# icon = pygame.draw.polygon(self.image,(255,255,0),[(22,22),(32,32),(42,22)],1)
+				# pygame.transform.rotate(icon, 50)
+				
 			if type(i) is Ship:
 				pygame.draw.circle(self.image,(45,120,255,100),[int(c*self.ratio) for c in i.pos],1)
 				
 				# pygame.draw.polygon(self.image,(45,120,255),[(22,22),(32,32),(42,22)],1)
-
-		#pygame.draw.line(SCREEN,(0,0,0),(player.pos[0],player.pos[1]),mouseCoords)
 
 
 
