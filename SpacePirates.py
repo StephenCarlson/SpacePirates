@@ -29,6 +29,7 @@ from array import *
 # Timing Parameters
 FPS 					= 60
 NETWORK_PERIOD_MS 		= 50
+WEAPON_PERIOD_MS		= 100
 
 # Gameplay Parameters
 PLAYER_SIZE_START		= 40
@@ -43,6 +44,7 @@ TRAIL_LENGTH			= 300
 A_ON					= 0
 A_OFF					= 1
 NETWORK_EVENT 			= USEREVENT+1
+WEAPON_INTERVAL_EVENT	= USEREVENT+2
 
 # Resource Locations
 GAME_ICON_IMAGE			= 'gameicon.png'
@@ -50,7 +52,8 @@ SHIP_IMAGE_FILE			= 'ship.png'
 SHIP2_IMAGE_FILE		= 'ship2.png'
 # SHIP_IMAGE_FILE			= 'test.png' # 'ship.png'
 # SHIP2_IMAGE_FILE		= 'test.png' # 'ship2.png'
-GAME_MUSIC_FILE			= None # 'backgroundMusic.ogg'
+SHOT_IMAGE_FILE			= 'ship2.png'
+GAME_MUSIC_FILE			= 'backgroundMusic.ogg' #  None # 
 # Music File Source:
 # 	Stellardrone - 09 - The Edge of Forever
 # 	http://www.archive.org/details/Stellardrone-InventTheUniverse
@@ -116,7 +119,7 @@ class SpaceObject(pygame.sprite.Sprite):
 		
 		self.vel[0] += (self.acc[0])
 		self.vel[1] += (self.acc[1])
-		self.vel = [clamp(self.vel[0],-FLY_MAX,FLY_MAX),clamp(self.vel[1],-FLY_MAX,FLY_MAX)]		
+		# self.vel = [clamp(self.vel[0],-FLY_MAX,FLY_MAX),clamp(self.vel[1],-FLY_MAX,FLY_MAX)]		
 		
 		self.pos[0] += (self.vel[0])
 		self.pos[1] += (self.vel[1])
@@ -126,6 +129,9 @@ class SpaceObject(pygame.sprite.Sprite):
 		
 		self.pos[0] = roll(self.pos[0],0,WORLD_SIZE[0])
 		self.pos[1] = roll(self.pos[1],0,WORLD_SIZE[1])
+		
+		# self.pos[0] = clamp(self.pos[0],0,WORLD_SIZE[0])
+		# self.pos[1] = clamp(self.pos[1],0,WORLD_SIZE[1])
 		
 		if(perspective == 0):
 			self.rect.centerx = roll(self.pos[0] - camera[0],0,WORLD_SIZE[0])
@@ -156,7 +162,7 @@ class SpaceObject(pygame.sprite.Sprite):
 		dv = vsub(other.vel,self.vel)
 		J = vdot(dv,n)/(2*vdot(n,n))
 		if J > 0:
-			J *= 0.8 # 1.9
+			J *= 1.9 #0.8 # 1.9
 			self.vel[0] += nx*J
 			self.vel[1] += ny*J
 			other.vel[0] += -J*nx
@@ -171,16 +177,19 @@ class Ship(SpaceObject):
 		self.mass 		= PLAYER_MASS_START
 		self.shooting 	= False
 		
-		self.pos = [random.uniform(0,SCREEN.get_width()),random.uniform(0,SCREEN.get_height())]		
+		self.pos = [0,0] # [random.uniform(0,SCREEN.get_width()),random.uniform(0,SCREEN.get_height())]		
 		
-		self.ID			= random.randint(0,65535)
+		self.ID			= -1 # random.randint(0,65535)
 		
 		self.contrail = Contrail()
 		
 	def update(self, perspective=0):
 		SpaceObject.update(self,perspective)
-		self.contrail.append(self.rect)
+		self.vel = [clamp(self.vel[0],-FLY_MAX,FLY_MAX),clamp(self.vel[1],-FLY_MAX,FLY_MAX)]	
+		self.contrail.append(self)
 		self.contrail.update()
+		# if(self.shooting):
+		# 	shot = Shot(self)
 		
 # A type of Ship object. Has keys and mouse controls.
 class Player(Ship):
@@ -228,23 +237,59 @@ class Player(Ship):
 		mouseRotation = ( math.degrees( math.atan2(dxx,-dyy) ) )
 		keysRotation = self.rot + ((keystate[K_RIGHT]-keystate[K_LEFT]+keystate[K_e]-keystate[K_q])*5.0)
 		self.rot = mouseRotation if self.mouseNav else keysRotation
+
 		
+class EnemyNPC(Ship):
+	def __init__(self, target):
+		Ship.__init__(self, img=SHIP2_IMAGE_FILE)
+		self.target = target
+		# print self.target
+		self.dxx = 0
+		self.dyy = 0
+		
+	def onFire(self):
+		targetDist = math.sqrt(self.dxx**2 + self.dyy**2)
+		if( (20 < targetDist) and (targetDist < 300) ):
+			Shot(self)
+		
+	def update(self):
+		Ship.update(self, 0)
+		
+		self.dxx = self.target.pos[0]-self.pos[0]
+		self.dyy = self.target.pos[1]-self.pos[1]
+		self.rot		= ( math.degrees( math.atan2(self.dxx,-self.dyy) ) )
+		
+		
+		xComp = 1.0*math.sin(math.radians(self.rot))
+		yComp = 0 - 1.0*math.cos(math.radians(self.rot))
+		mVec = [xComp,yComp]
+		
+		
+		self.acc[0] = (mVec[0]*FLY_ACCEL)
+		self.acc[1] = (mVec[1]*FLY_ACCEL)
+		
+		
+		
+		
+		
+
 # A SpaceObject. Puffs and trails that have momentum but no collision or damage.
-class Contrail(pygame.sprite.Sprite):
+class Contrail(pygame.sprite.Group):
 	def __init__(self):
 		# Can also use super().__init__()
-		pygame.sprite.Sprite.__init__(self, self.containers)
+		pygame.sprite.Group.__init__(self) #, self.containers)
 		self.trail = collections.deque(TRAIL_LENGTH*[pygame.Rect(0,0,0,0)],TRAIL_LENGTH) # From http://stackoverflow.com/questions/1931589
 		# self.image = pygame.draw.circle(SCREEN,(20,20,20),[200,200],10,)
-		self.image = pygame.Surface( (int(2), int(2)) )
+		# self.image = pygame.Surface( (int(200), int(200)) )
 		# pygame.Surface( (int(WORLD_SIZE[0]),int(WORLD_SIZE[1])) )
-		self.rect = self.image.get_rect()
+		# self.rect = self.image.get_rect()
 		# print containers
 		
 		
-	def append(self,inRect):
+	def append(self,parent):
+		
 		# print inRect
-		newRect = inRect.inflate(-15,-15)
+		newRect = parent.rect.inflate(-15,-15)
 		self.trail.appendleft(newRect)
 		
 	def update(self):
@@ -256,7 +301,9 @@ class Contrail(pygame.sprite.Sprite):
 			# contrailWidth = int(((TRAIL_LENGTH-p)*10/TRAIL_LENGTH)) if (p>2) else 0
 			# contrailColor = (24,24,((TRAIL_LENGTH-p)/4)+24)
 			# pygame.draw.circle(SCREEN,contrailColor,contrailCoord,contrailWidth,)
-			pygame.draw.ellipse(SCREEN,(24,24,((TRAIL_LENGTH-p)/4)+24),self.trail[p])
+			# pygame.draw.ellipse(SCREEN,(24,24,((TRAIL_LENGTH-p)/4)+24),self.trail[p])
+			# pygame.draw.ellipse(self.image,(100,100,((TRAIL_LENGTH-p)/4)+24),self.trail[p])
+			pass
 			
 			
 # class TargetReticle(SpaceObject):
@@ -266,9 +313,22 @@ class Contrail(pygame.sprite.Sprite):
 
 
 
+
+class Shot(SpaceObject):
+	def __init__(self, parent):
+		
+		SpaceObject.__init__(self,SHOT_IMAGE_FILE)
+		self.vel[0] = parent.vel[0] + 10.0*math.sin(math.radians(parent.rot))
+		self.vel[1] = parent.vel[1] - 10.0*math.cos(math.radians(parent.rot))
+		self.pos[0] = parent.pos[0]
+		self.pos[1] = parent.pos[1]
+		
+		
+	def update(self):
+		SpaceObject.update(self,0)
+		
+	
 '''
-class Shot(pygame.sprite.Sprite):
-	def __init__(self):
 class Explosion(pygame.sprite.Sprite):
 	def __init__(self):
 class PowerUp(pygame.sprite.Sprite):
@@ -322,12 +382,16 @@ class MiniMap(pygame.sprite.Sprite):
 				
 				# pygame.draw.polygon(self.image,(45,120,255),[(22,22),(32,32),(42,22)],1)
 
+			if type(i) is EnemyNPC:
+				pygame.draw.circle(self.image,(200,20,20,200),[int(c*self.ratio) for c in i.pos],1)
+
 
 
 def main():
 	global SCREEN, BACKGROUND, CLOCK
 	pygame.init()
 	pygame.time.set_timer(NETWORK_EVENT, NETWORK_PERIOD_MS)
+	pygame.time.set_timer(WEAPON_INTERVAL_EVENT, WEAPON_PERIOD_MS)
 	SCREEN = pygame.display.set_mode(SCREEN_SIZE)
 	BACKGROUND = pygame.Surface(SCREEN.get_size())
 	# BACKGROUND = BACKGROUND.convert() 	# Use when displaying images?
@@ -339,11 +403,11 @@ def main():
 	CLOCK = pygame.time.Clock()
 	
 	while True:
-		# if GAME_MUSIC_FILE is not None:
-		try:
-			pygame.mixer.music.load(GAME_MUSIC_FILE)
-			pygame.mixer.music.play(-1, 0.0)
-		except Exception,e: print str(e)
+		if GAME_MUSIC_FILE is not None:
+			try:
+				pygame.mixer.music.load(GAME_MUSIC_FILE)
+				pygame.mixer.music.play(-1, 0.0)
+			except Exception,e: print str(e)
 		
 		run()
 
@@ -354,10 +418,14 @@ def run():
 	objects = pygame.sprite.Group()	# Ships, asteroids, debris, any collide-able object
 	shots = pygame.sprite.Group()	# Projectile weapon slugs, missiles, lasers, anything that subtracts health. Always remove on collide.
 	effects = pygame.sprite.Group()	# Non-Colliding graphical objects, like explosions, contrails, targeting-reticle, etc
+	ai_agents = pygame.sprite.Group()
+	
+	
+	# Ship.containers = renderer, objects
 
 	Player.containers = renderer, objects
-	Ship.containers = renderer, objects
-	#Shot.containers = renderer, shots
+	EnemyNPC.containers = renderer, objects, ai_agents
+	Shot.containers = renderer, shots
 	Contrail.containers = renderer, effects
 	MiniMap.containers = renderer,effects
 	
@@ -371,13 +439,12 @@ def run():
 	
 
 	for i in range(5):
-		newShip = Ship()
+		newShip = EnemyNPC(player) # Ship() # 
 		newID = random.randint(0,65535)
 		newShip.ID = newID
 		newShip.pos = [random.uniform(0,WORLD_SIZE[0]),random.uniform(0,WORLD_SIZE[1])]
 		newShip.rot = 0 # random.uniform(0,360)
 		otherPlayers[newID] = newShip
-
 	
 	# contrail = player.contrail
 	
@@ -396,8 +463,9 @@ def run():
 					player.rot = 0
 					player.vel = [0,0]
 					
-				elif event.key == (K_SPACE):
-					player.shooting = True
+				# elif event.key == (K_SPACE):
+				# 	shot = Shot(player)
+					# player.shooting = True
 				elif event.key == (K_m):
 					if renderer in minimap.groups():
 						minimap.remove(renderer)
@@ -425,6 +493,9 @@ def run():
 			elif event.type == NETWORK_EVENT:
 				payload = struct.pack('Hfffff',player.ID,float(player.rot),float(player.pos[0]),float(player.pos[1]),float(player.vel[0]),float(player.vel[1]))
 				sock.sendto(payload, (UDP_IP, UDP_PORT))
+			elif event.type == WEAPON_INTERVAL_EVENT:
+				for ai in ai_agents:
+					ai.onFire()
 
 		# Collision Testing
 		for item in objects:
